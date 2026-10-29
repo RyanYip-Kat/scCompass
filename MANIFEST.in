@@ -1,0 +1,5 @@
+recursive-include src/core/Resources *
+recursive-include scripts *.py *.sh
+recursive-include docs/images *
+include README.md
+include usage.md

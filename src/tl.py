@@ -1,0 +1,92 @@
+"""Analysis entry points for scCompass."""
+
+from .reporting import (
+    differential,
+    group_summary,
+    metabolite_differential,
+    pathway_summary,
+    run_report,
+)
+
+__all__ = [
+    "compass",
+    "differential",
+    "group_summary",
+    "metabolite_differential",
+    "pathway_summary",
+    "run_report",
+]
+
+
+def compass(
+    adata,
+    model="RECON2_mat",
+    media="default-media",
+    species="homo_sapiens",
+    expression_layer="counts",
+    gene_symbol_key=None,
+    lambda_=0.0,
+    num_neighbors=30,
+    calc_metabolites=True,
+    isoform_summing="remove-summing",
+    and_function="mean",
+    symmetric_kernel=False,
+    penalty_diffusion="knn",
+    penalty_backend="vectorized",
+    cell_chunk_size=1024,
+    checkpoint_dir=None,
+    checkpoint_batch_size=64,
+    overwrite_checkpoint=False,
+    num_processes=1,
+    microcluster_size=None,
+    microcluster_pooler=None,
+    microcluster_filter="fano",
+    microcluster_filter_threshold=None,
+    solver_backend="cplex",
+    select_reactions=None,
+    select_subsystems=None,
+    test_mode=False,
+    num_threads=1,
+    model_loader=None,
+    core_runner=None,
+    sample_size=None,
+    **kwargs,
+):
+    """Run Compass on an AnnData object and return a score-centric result."""
+
+    from .runner import run_compass
+
+    return run_compass(
+        adata,
+        model=model,
+        media=media,
+        species=species,
+        expression_layer=expression_layer,
+        gene_symbol_key=gene_symbol_key,
+        lambda_=lambda_,
+        num_neighbors=num_neighbors,
+        calc_metabolites=calc_metabolites,
+        isoform_summing=isoform_summing,
+        and_function=and_function,
+        symmetric_kernel=symmetric_kernel,
+        penalty_diffusion=penalty_diffusion,
+        penalty_backend=penalty_backend,
+        cell_chunk_size=cell_chunk_size,
+        checkpoint_dir=checkpoint_dir,
+        checkpoint_batch_size=checkpoint_batch_size,
+        overwrite_checkpoint=overwrite_checkpoint,
+        num_processes=num_processes,
+        microcluster_size=microcluster_size,
+        microcluster_pooler=microcluster_pooler,
+        microcluster_filter=microcluster_filter,
+        microcluster_filter_threshold=microcluster_filter_threshold,
+        solver_backend=solver_backend,
+        select_reactions=select_reactions,
+        select_subsystems=select_subsystems,
+        test_mode=test_mode,
+        num_threads=num_threads,
+        model_loader=model_loader,
+        core_runner=core_runner,
+        sample_size=sample_size,
+        **kwargs,
+    )

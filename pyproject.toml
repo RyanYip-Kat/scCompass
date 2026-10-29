@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+filterwarnings = [
+    "ignore:The 'mode.chained_assignment' option is deprecated.*:pandas.errors.Pandas4Warning",
+    "ignore:The 'future.infer_string' option is deprecated.*:pandas.errors.Pandas4Warning",
+]
+markers = [
+    "slow: tests that run the full Compass solver path",
+]
