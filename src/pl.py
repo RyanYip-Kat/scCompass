@@ -527,6 +527,183 @@ def metabolite_volcano(
     return figure
 
 
+def metabolite_pathway_strip(
+    result,
+    groupby,
+    group_a,
+    group_b,
+    pathways=None,
+    max_pathways=40,
+    fdr_threshold=0.1,
+    label_top_n=8,
+    figsize=None,
+    show=True,
+):
+    """Plot metabolite-level pathway effects as a signed strip plot."""
+
+    import matplotlib.pyplot as plt
+    from matplotlib.lines import Line2D
+
+    from .reporting import metabolite_pathway_differential
+
+    table = metabolite_pathway_differential(
+        result,
+        groupby=groupby,
+        group_a=group_a,
+        group_b=group_b,
+    )
+    if table.empty:
+        raise ValueError("No metabolite-pathway differences are available")
+    if pathways is None:
+        ranking = (
+            table.assign(abs_effect=table["cohens_d"].abs())
+            .groupby("pathway")["abs_effect"]
+            .max()
+            .sort_values(ascending=False)
+        )
+        pathways = ranking.head(max_pathways).index.tolist()
+    pathways = [pathways] if isinstance(pathways, str) else list(pathways)
+    table = table[table["pathway"].isin(pathways)].copy()
+    if table.empty:
+        raise ValueError("No data remain after pathway filtering")
+    table["abs_effect"] = table["cohens_d"].abs()
+    table["neglog10_fdr"] = -np.log10(
+        np.clip(table["pvalue_adj"].to_numpy(dtype=float), 1e-300, 1.0)
+    )
+    table["significant"] = table["pvalue_adj"] <= fdr_threshold
+
+    if figsize is None:
+        figsize = (10.0, max(3.2, 0.34 * len(pathways)))
+    figure, axis = plt.subplots(figsize=figsize, constrained_layout=False)
+    figure.subplots_adjust(left=0.24, right=0.98, top=0.88, bottom=0.32)
+    rng = np.random.default_rng(1337)
+    path_positions = {pathway: index for index, pathway in enumerate(pathways)}
+    y = np.asarray(
+        [path_positions[pathway] for pathway in table["pathway"]],
+        dtype=float,
+    )
+    jitter = rng.uniform(-0.16, 0.16, size=len(table))
+    sizes = np.where(table["significant"], 28, 14)
+    alphas = np.where(table["significant"], 0.95, 0.35)
+    max_effect = max(1.0, float(np.nanmax(table["abs_effect"])))
+    for index, (_, point) in enumerate(table.iterrows()):
+        color = "#C51B3A" if point["cohens_d"] > 0 else "#2C7BB6"
+        axis.scatter(
+            point["cohens_d"],
+            y[index] + jitter[index],
+            s=sizes[index],
+            color=color,
+            alpha=alphas[index],
+            edgecolor="none",
+            zorder=3,
+        )
+    axis.axvline(0, color="black", linestyle="--", linewidth=0.9)
+    axis.set_yticks(np.arange(len(pathways)), pathways)
+    axis.set_ylim(len(pathways) - 0.5, -0.5)
+    axis.set_xlim(-max_effect * 1.15, max_effect * 1.15)
+    axis.set_xlabel(f"Cohen's d ({group_a} - {group_b})", fontsize=8)
+    axis.set_ylabel("")
+    axis.set_title(
+        "Up- and Down-Regulated Metabolites Across Pathway Boundaries",
+        fontsize=10,
+    )
+    axis.tick_params(labelsize=7)
+    axis.grid(axis="y", color="#E5E5E5", linewidth=0.5, zorder=0)
+
+    label_candidates = table[table["significant"]].copy()
+    if label_candidates.empty:
+        label_candidates = table.copy()
+    label_candidates["rank"] = (
+        label_candidates["abs_effect"] * label_candidates["neglog10_fdr"]
+    )
+    label_candidates = label_candidates.nlargest(
+        min(label_top_n, len(label_candidates)), "rank"
+    )
+    for pathway, pathway_labels in label_candidates.groupby("pathway", sort=False):
+        pathway_labels = pathway_labels.sort_values("rank", ascending=False)
+        offsets = np.linspace(-0.3, 0.3, len(pathway_labels))
+        for label_index, ((_, point), y_offset) in enumerate(
+            zip(pathway_labels.iterrows(), offsets)
+        ):
+            base_y = path_positions[pathway]
+            side = 1 if point["cohens_d"] >= 0 else -1
+            x_offset = point["cohens_d"] + side * max_effect * (
+                0.035 + 0.015 * (label_index % 2)
+            )
+            axis.annotate(
+                str(point["metabolite"]),
+                xy=(point["cohens_d"], base_y),
+                xytext=(x_offset, base_y + y_offset),
+                fontsize=5.5,
+                ha="left" if side > 0 else "right",
+                va="center",
+                bbox={
+                    "facecolor": "white",
+                    "edgecolor": "none",
+                    "alpha": 0.72,
+                    "pad": 0.35,
+                },
+                arrowprops={
+                    "arrowstyle": "-",
+                    "color": "#555555",
+                    "linewidth": 0.4,
+                    "shrinkA": 1,
+                    "shrinkB": 2,
+                },
+            )
+
+    legend_handles = [
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#C51B3A",
+            markersize=5,
+            label=f"Higher in {group_a}",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#2C7BB6",
+            markersize=5,
+            label=f"Higher in {group_b}",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#777777",
+            alpha=0.35,
+            markersize=4,
+            label="Not significant",
+        ),
+        Line2D(
+            [0],
+            [0],
+            marker="o",
+            color="none",
+            markerfacecolor="#222222",
+            markersize=5,
+            label=f"BH-adjusted p < {fdr_threshold:g}",
+        ),
+    ]
+    figure.legend(
+        handles=legend_handles,
+        frameon=False,
+        fontsize=7,
+        loc="lower center",
+        bbox_to_anchor=(0.5, 0.01),
+        ncols=4,
+    )
+    if show:
+        plt.show()
+    return figure
+
+
 def network(
     result,
     features=None,

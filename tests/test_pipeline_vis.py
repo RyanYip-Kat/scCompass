@@ -92,6 +92,9 @@ def test_pipeline_vis_generates_report_from_saved_anndata(tmp_path):
     assert manifest["outputs"]["metabolite_volcano"].endswith(
         "metabolite_volcano.png"
     )
+    assert manifest["outputs"]["metabolite_pathway_strip"].endswith(
+        "metabolite_pathway_strip.png"
+    )
     assert (output_dir / "reaction_differential.tsv").exists()
 
 

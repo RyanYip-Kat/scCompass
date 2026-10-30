@@ -242,6 +242,10 @@ python scripts/pipeline_vis.py \
 
 ![Metabolite volcano plot](docs/images/metabolite_volcano.png)
 
+### Metabolite pathway boundary strip plot
+
+![Metabolite pathway strip plot](docs/images/metabolite_pathway_strip.png)
+
 ### Local reaction–metabolite network
 
 ![Metabolic network](docs/images/metabolic_network.png)
@@ -267,8 +271,19 @@ scCompass.pl.metabolite_volcano(
     group_a="CD4 Naive",
     group_b="CD4 Tem",
 )
+scCompass.pl.metabolite_pathway_strip(
+    result,
+    groupby="celltype",
+    group_a="CD4 Naive",
+    group_b="CD4 Tem",
+)
 scCompass.pl.network(result, groupby="celltype", top_n=20)
 ```
+
+`metabolite_pathway_strip()` aggregates all non-exchange reactions incident to
+each metabolite within a pathway into a per-cell metabolite-pathway score.
+Each point is a metabolite: x is Cohen's d, red/blue indicates the group with
+higher penalty, and opacity/size distinguishes FDR-significant changes.
 
 See [usage.md](usage.md) for all parameters, output schemas, and examples.
 

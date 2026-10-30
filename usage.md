@@ -321,6 +321,21 @@ p-value = Mann-Whitney U
 FDR = Benjamini-Hochberg within direction/pathway panel
 ```
 
+### `metabolite_pathway_differential`
+
+```python
+pathway_metabolites = scCompass.tl.metabolite_pathway_differential(
+    result,
+    groupby="celltype",
+    group_a="CD4 Naive",
+    group_b="CD4 Tem",
+)
+```
+
+For each non-exchange pathway and metabolite, the per-cell score is the mean
+penalty of all incident reactions in that pathway. The result contains Cohen's
+d, group means, raw p-values, and BH-adjusted p-values.
+
 ## Plotting
 
 ### Reaction UMAP
@@ -436,6 +451,26 @@ scCompass.pl.metabolite_volcano(
 )
 ```
 
+### Metabolite pathway boundary strip plot
+
+```python
+scCompass.pl.metabolite_pathway_strip(
+    result,
+    groupby="celltype",
+    group_a="CD4 Naive",
+    group_b="CD4 Tem",
+    fdr_threshold=0.1,
+    label_top_n=8,
+)
+```
+
+![Metabolite pathway strip plot](docs/images/metabolite_pathway_strip.png)
+
+Each row is a pathway and each point is a metabolite. x is Cohen's d, red/blue
+indicates the group with higher penalty, and opacity/size distinguishes
+BH-adjusted significance. Labels are placed only on the highest-ranked
+metabolites to avoid overplotting.
+
 ### Local metabolic network
 
 Select by metabolite:
@@ -482,11 +517,13 @@ reaction_group_summary.tsv
 reaction_differential.tsv
 pathway_summary.tsv
 metabolite_differential.tsv
+metabolite_pathway_differential.tsv
 reaction_umap.png
 reaction_heatmap.png
 reaction_raincloud.png
 metabolite_dotplot.png
 metabolite_volcano.png
+metabolite_pathway_strip.png
 metabolic_network.png
 ```
 
@@ -557,6 +594,7 @@ FIGURE_FORMAT=png
 VOLCANO_GROUP_A='CD4 Naive'
 VOLCANO_GROUP_B='CD4 Tem'
 VOLCANO_Y_CAP=20
+PATHWAY_FDR_THRESHOLD=0.1
 ```
 
 ## Checkpoints and parallelism

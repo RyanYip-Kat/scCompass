@@ -342,6 +342,106 @@ def metabolite_differential(
     return pd.DataFrame(rows)
 
 
+def _cohens_d(values_a, values_b):
+    variance_a = np.var(values_a, ddof=1)
+    variance_b = np.var(values_b, ddof=1)
+    pooled = np.sqrt(
+        (
+            (len(values_a) - 1) * variance_a
+            + (len(values_b) - 1) * variance_b
+        )
+        / (len(values_a) + len(values_b) - 2)
+    )
+    difference = float(np.mean(values_a) - np.mean(values_b))
+    if pooled == 0:
+        return 0.0 if np.isclose(difference, 0) else float(np.sign(difference) * 10)
+    return float(difference / pooled)
+
+
+def metabolite_pathway_differential(
+    result,
+    groupby,
+    group_a,
+    group_b,
+):
+    """Derive metabolite-pathway scores from their incident reaction penalties."""
+
+    groups = _group_series(result, groupby)
+    if str(group_a) == str(group_b):
+        raise ValueError("group_a and group_b must be different")
+    for group in (group_a, group_b):
+        if str(group) not in set(groups):
+            raise ValueError(f"Unknown group: {group}")
+
+    links = _metabolite_pathways(result)
+    reaction_scores = _score_frame(result, "reactions")
+    rows = []
+    for pathway, pathway_links in links.groupby("pathway", sort=True):
+        panel_rows = []
+        for metabolite, metabolite_links in pathway_links.groupby(
+            "metabolite", sort=True
+        ):
+            reaction_ids = [
+                reaction
+                for reaction in metabolite_links["reaction"].unique()
+                if reaction in reaction_scores.columns
+            ]
+            if not reaction_ids:
+                continue
+            cell_scores = reaction_scores.loc[:, reaction_ids].mean(axis=1)
+            values_a = cell_scores.loc[
+                groups == str(group_a)
+            ].to_numpy(dtype=float)
+            values_b = cell_scores.loc[
+                groups == str(group_b)
+            ].to_numpy(dtype=float)
+            values_a = values_a[np.isfinite(values_a)]
+            values_b = values_b[np.isfinite(values_b)]
+            if values_a.size < 2 or values_b.size < 2:
+                continue
+            if np.all(values_a == values_a[0]) and np.all(
+                values_b == values_b[0]
+            ):
+                pvalue = 1.0
+            else:
+                _, pvalue = mannwhitneyu(
+                    values_a, values_b, alternative="two-sided"
+                )
+            panel_rows.append(
+                {
+                    "pathway": str(pathway),
+                    "metabolite": str(metabolite),
+                    "n_reactions": len(reaction_ids),
+                    "n_a": int(values_a.size),
+                    "n_b": int(values_b.size),
+                    "mean_a": float(np.mean(values_a)),
+                    "mean_b": float(np.mean(values_b)),
+                    "cohens_d": _cohens_d(values_a, values_b),
+                    "pvalue": float(pvalue),
+                }
+            )
+        if panel_rows:
+            panel = pd.DataFrame(panel_rows)
+            panel["pvalue_adj"] = _adjust_bh(panel["pvalue"])
+            rows.extend(panel.to_dict("records"))
+    if not rows:
+        return pd.DataFrame(
+            columns=[
+                "pathway",
+                "metabolite",
+                "n_reactions",
+                "n_a",
+                "n_b",
+                "mean_a",
+                "mean_b",
+                "cohens_d",
+                "pvalue",
+                "pvalue_adj",
+            ]
+        )
+    return pd.DataFrame(rows)
+
+
 def run_report(
     result,
     output_dir,
@@ -354,6 +454,8 @@ def run_report(
     volcano_fdr_threshold=0.05,
     volcano_max_labels=6,
     volcano_y_cap=20.0,
+    pathway_fdr_threshold=0.1,
+    pathway_max_labels=8,
     output_format="png",
     dpi=300,
 ):
@@ -370,12 +472,14 @@ def run_report(
         "differential": "reaction_differential.tsv",
         "pathway_summary": "pathway_summary.tsv",
         "metabolite_differential": "metabolite_differential.tsv",
+        "metabolite_pathway_differential": "metabolite_pathway_differential.tsv",
         "umap": f"reaction_umap.{output_format}",
         "heatmap": f"reaction_heatmap.{output_format}",
         "raincloud": f"reaction_raincloud.{output_format}",
         "metabolite_dotplot": f"metabolite_dotplot.{output_format}",
         "network": f"metabolic_network.{output_format}",
         "metabolite_volcano": f"metabolite_volcano.{output_format}",
+        "metabolite_pathway_strip": f"metabolite_pathway_strip.{output_format}",
     }
     artifacts = {key: output_dir / value for key, value in suffixes.items()}
 
@@ -410,6 +514,15 @@ def run_report(
     )
     metabolite_diff.to_csv(
         artifacts["metabolite_differential"], sep="\t", index=False
+    )
+    metabolite_pathway_diff = metabolite_pathway_differential(
+        result,
+        groupby=groupby,
+        group_a=volcano_groups[0],
+        group_b=volcano_groups[1],
+    )
+    metabolite_pathway_diff.to_csv(
+        artifacts["metabolite_pathway_differential"], sep="\t", index=False
     )
 
     selected = (
@@ -454,6 +567,17 @@ def run_report(
                 fdr_threshold=volcano_fdr_threshold,
                 max_labels=volcano_max_labels,
                 y_cap=volcano_y_cap,
+            ),
+        ),
+        (
+            "metabolite_pathway_strip",
+            pl.metabolite_pathway_strip(
+                result,
+                groupby=groupby,
+                group_a=volcano_groups[0],
+                group_b=volcano_groups[1],
+                fdr_threshold=pathway_fdr_threshold,
+                label_top_n=pathway_max_labels,
             ),
         ),
     ]

@@ -16,6 +16,7 @@ outputs/
 
 # User-provided reference image, not part of the package
 v2-*.png
+20*_*.png
 
 # Local tooling and credentials
 .agents/

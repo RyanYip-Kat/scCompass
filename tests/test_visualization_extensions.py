@@ -11,6 +11,7 @@ import scCompass.pl as scc_pl
 from scCompass.reporting import (
     differential,
     group_summary,
+    metabolite_pathway_differential,
     pathway_summary,
     run_report,
 )
@@ -94,6 +95,20 @@ def test_pathway_summary_aggregates_reaction_metadata():
     assert row["n_reactions"] == 2
 
 
+def test_metabolite_pathway_differential_derives_scores_from_incident_reactions():
+    table = metabolite_pathway_differential(
+        _result(),
+        groupby="celltype",
+        group_a="A",
+        group_b="C",
+    )
+
+    assert set(table["pathway"]) == {"Glycolysis", "TCA"}
+    assert set(table["metabolite"]) == {"M1", "M2", "M3", "M4"}
+    assert table.loc[table["metabolite"] == "M1", "cohens_d"].iloc[0] < 0
+    assert table.loc[table["metabolite"] == "M3", "cohens_d"].iloc[0] > 0
+
+
 def test_reactome_heatmap_and_raincloud_return_figures():
     result = _result()
 
@@ -131,10 +146,17 @@ def test_metabolite_dotplot_and_network_return_figures():
         group_a="A",
         group_b="B",
     )
+    pathway_strip = scc_pl.metabolite_pathway_strip(
+        result,
+        groupby="celltype",
+        group_a="A",
+        group_b="C",
+    )
 
     assert isinstance(dotplot, Figure)
     assert isinstance(network, Figure)
     assert isinstance(volcano, Figure)
+    assert isinstance(pathway_strip, Figure)
     assert len(network.axes) >= 1
 
 
@@ -155,6 +177,8 @@ def test_report_writes_tables_and_figures(tmp_path):
     assert artifacts["metabolite_dotplot"].exists()
     assert artifacts["metabolite_differential"].exists()
     assert artifacts["metabolite_volcano"].exists()
+    assert artifacts["metabolite_pathway_strip"].exists()
+    assert artifacts["metabolite_pathway_differential"].exists()
     assert artifacts["network"].exists()
 
 

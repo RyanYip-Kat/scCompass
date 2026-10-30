@@ -4,6 +4,7 @@ from .reporting import (
     differential,
     group_summary,
     metabolite_differential,
+    metabolite_pathway_differential,
     pathway_summary,
     run_report,
 )
@@ -13,6 +14,7 @@ __all__ = [
     "differential",
     "group_summary",
     "metabolite_differential",
+    "metabolite_pathway_differential",
     "pathway_summary",
     "run_report",
 ]

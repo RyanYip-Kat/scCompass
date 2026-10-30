@@ -41,6 +41,8 @@ def _parser():
     parser.add_argument("--fdr-threshold", type=float, default=0.05)
     parser.add_argument("--volcano-max-labels", type=int, default=6)
     parser.add_argument("--volcano-y-cap", type=float, default=20.0)
+    parser.add_argument("--pathway-fdr-threshold", type=float, default=0.1)
+    parser.add_argument("--pathway-max-labels", type=int, default=8)
     return parser
 
 
@@ -84,6 +86,8 @@ def main(argv=None):
         volcano_fdr_threshold=args.fdr_threshold,
         volcano_max_labels=args.volcano_max_labels,
         volcano_y_cap=args.volcano_y_cap,
+        pathway_fdr_threshold=args.pathway_fdr_threshold,
+        pathway_max_labels=args.pathway_max_labels,
         output_format=args.format,
         dpi=args.dpi,
     )
@@ -105,6 +109,8 @@ def main(argv=None):
         "effect_threshold": args.effect_threshold,
         "fdr_threshold": args.fdr_threshold,
         "volcano_y_cap": args.volcano_y_cap,
+        "pathway_fdr_threshold": args.pathway_fdr_threshold,
+        "pathway_max_labels": args.pathway_max_labels,
         "outputs": {
             key: str(path)
             for key, path in artifacts.items()
